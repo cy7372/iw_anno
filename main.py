@@ -31,6 +31,7 @@ class ImageLabel(QLabel):
         self.show_mask = True
         self.scroll_area = scroll_area
         self.main_window = main_window
+        self.show_image = True  # 添加控制图像显示的标志
 
     def set_mask(self, mask):
         self.mask = mask
@@ -56,6 +57,10 @@ class ImageLabel(QLabel):
     def set_show_mask(self, show):
         self.show_mask = show
 
+    def set_show_image(self, show):
+        """设置是否显示原始图像"""
+        self.show_image = show
+
     def wheelEvent(self, event):
         if self.image is None:
             return
@@ -75,8 +80,13 @@ class ImageLabel(QLabel):
 
     def update_display(self, cursor_pos=None):
         if self.image:
-            # 创建用于显示的图像
-            display_image = self.image.copy()
+            # 创建显示用的图像
+            if self.show_image:
+                display_image = self.image.copy()
+            else:
+                # 创建白色背景
+                display_image = QImage(self.image.size(), QImage.Format_RGB32)
+                display_image.fill(Qt.white)
             
             # 如果启用了蒙版显示，添加蒙版叠加
             if self.show_mask and self.mask:
@@ -153,6 +163,13 @@ class ImageLabel(QLabel):
         image_y = max(0, min(image_y, self.image.height() - 1))
         return QPoint(int(image_x), int(image_y))
 
+    def keyPressEvent(self, event):
+        # 将键盘事件传递给主窗口
+        if self.main_window:
+            self.main_window.keyPressEvent(event)
+        else:
+            super().keyPressEvent(event)
+
 class SegmentationTool(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -203,10 +220,15 @@ class SegmentationTool(QMainWindow):
         self.show_mask_checkbox.setChecked(True)
         self.show_mask_checkbox.stateChanged.connect(self.show_mask_checkbox_state_changed)
 
+        # 添加显示原始图像的复选框
+        self.show_image_checkbox = QCheckBox("Show Image", self)
+        self.show_image_checkbox.setChecked(True)
+        self.show_image_checkbox.stateChanged.connect(self.show_image_checkbox_state_changed)
+        
         # 初始化工具为 brush
         self.erase_mode = False
-        self.brush_size = 5
-        self.eraser_size = 5
+        self.brush_size = 2
+        self.eraser_size = 20
 
         # 画笔和橡皮擦按钮
         self.brush_button = QPushButton(self)
@@ -276,6 +298,7 @@ class SegmentationTool(QMainWindow):
         button_layout.addWidget(self.clear_button)
         button_layout.addWidget(self.auto_save_checkbox)
         button_layout.addWidget(self.show_mask_checkbox)
+        button_layout.addWidget(self.show_image_checkbox)  # 添加到布局中
         
         # 创建工具按钮的子布局
         tool_layout = QHBoxLayout()
@@ -344,6 +367,12 @@ class SegmentationTool(QMainWindow):
         # 默认选择画笔模式
         self.set_brush_mode()
 
+        # 设置窗口接受键盘焦点
+        self.setFocusPolicy(Qt.StrongFocus)
+        
+        # 确保图像标签可以接收键盘事件
+        self.image_label.setFocusPolicy(Qt.StrongFocus)
+
     def set_brush_mode(self):
         """设置画笔模式并更新界面"""
         self.erase_mode = False
@@ -379,6 +408,11 @@ class SegmentationTool(QMainWindow):
 
     def show_mask_checkbox_state_changed(self, state):
         self.image_label.set_show_mask(self.show_mask_checkbox.isChecked())
+        self.image_label.update_display()
+
+    def show_image_checkbox_state_changed(self, state):
+        """处理显示/隐藏原始图像的状态变化"""
+        self.image_label.set_show_image(self.show_image_checkbox.isChecked())
         self.image_label.update_display()
 
     def update_count_label(self):
@@ -540,6 +574,37 @@ class SegmentationTool(QMainWindow):
             
             # 保存当前状态用于撤销
             self.save_mask_state()
+
+    def keyPressEvent(self, event):
+        # 处理快捷键
+        if event.modifiers() == Qt.ControlModifier:
+            if event.key() == Qt.Key_Z:
+                # Ctrl+Z: 撤销上一步操作
+                self.undo()
+            elif event.key() == Qt.Key_Q:
+                # Ctrl+Q: 切换到画笔模式
+                self.brush_button.setChecked(True)
+                self.set_brush_mode()
+            elif event.key() == Qt.Key_W:
+                # Ctrl+W: 切换到橡皮擦模式
+                self.eraser_button.setChecked(True)
+                self.set_eraser_mode()
+        # 处理方向键
+        elif event.key() == Qt.Key_Left or event.key() == Qt.Key_Up:
+            # 左方向键或上方向键：上一张图片
+            if self.current_index > 0:
+                self.load_previous_image()
+        elif event.key() == Qt.Key_Right or event.key() == Qt.Key_Down:
+            # 右方向键或下方向键：下一张图片
+            if self.current_index < len(self.image_list) - 1:
+                self.load_next_image()
+        else:
+            super().keyPressEvent(event)
+
+    def mousePressEvent(self, event):
+        # 当鼠标点击窗口时，确保窗口获得焦点
+        self.setFocus()
+        super().mousePressEvent(event)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
