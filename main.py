@@ -546,7 +546,8 @@ class SegmentationTool(QMainWindow):
 
     def save_mask(self):
         if self.mask is not None:
-            filename = self.image_list[self.current_index]
+            # 获取原始文件名（不含扩展名）并添加.png扩展名
+            filename = os.path.splitext(self.image_list[self.current_index])[0] + '.png'
             save_path = os.path.join(self.save_folder, filename)
             self.mask.save(save_path)
 
