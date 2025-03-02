@@ -14,6 +14,7 @@ from PyQt5.QtGui import (
 from PyQt5.QtCore import Qt, QPoint
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
+import re
 
 class ImageLabel(QLabel):
     def __init__(self, parent=None, scroll_area=None, main_window=None):
@@ -437,6 +438,11 @@ class SegmentationTool(QMainWindow):
     def update_count_label(self):
         self.count_label.setText(f"Annotated samples: {self.annotated_count}")
 
+    def natural_key(self, key):
+        """
+        将字符串中的数字部分转换为整数，用于自然排序。
+        """
+        return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', key)]
 
     def load_images(self):
         main_folder = QFileDialog.getExistingDirectory(self, "Select Main Folder", "")
@@ -458,9 +464,9 @@ class SegmentationTool(QMainWindow):
 
         self.image_list = [
             f for f in os.listdir(self.image_folder)
-            if f.lower().endswith(".png") or f.lower().endswith(".jpg")
+            if f.lower().endswith((".png", ".jpg"))
         ]
-        self.image_list.sort()
+        self.image_list.sort(key=self.natural_key)
 
         if not self.image_list:
             print("No images found.")
