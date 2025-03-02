@@ -1,9 +1,11 @@
-import sys
 import os
+os.environ["QT_XCB_FORCE_SOFTWARE_OPENGL"] = "1"
+
+import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget,
     QPushButton, QHBoxLayout, QSizePolicy, QCheckBox, QAction,
-    QSlider, QSpinBox, QScrollArea, QFileDialog, QButtonGroup
+    QSlider, QSpinBox, QScrollArea, QFileDialog, QButtonGroup, QMessageBox, QShortcut
 )
 from PyQt5.QtGui import (
     QPixmap, QImage, QPainter, QColor, QPen, QKeySequence,
@@ -373,6 +375,23 @@ class SegmentationTool(QMainWindow):
         # 确保图像标签可以接收键盘事件
         self.image_label.setFocusPolicy(Qt.StrongFocus)
 
+        # 在设置完焦点之后添加跨平台快捷键的绑定
+        self.shortcut_left = QShortcut(QKeySequence(Qt.Key_Left), self)
+        self.shortcut_left.setContext(Qt.ApplicationShortcut)
+        self.shortcut_left.activated.connect(self.load_previous_image)
+
+        self.shortcut_right = QShortcut(QKeySequence(Qt.Key_Right), self)
+        self.shortcut_right.setContext(Qt.ApplicationShortcut)
+        self.shortcut_right.activated.connect(self.load_next_image)
+
+        self.shortcut_up = QShortcut(QKeySequence(Qt.Key_Up), self)
+        self.shortcut_up.setContext(Qt.ApplicationShortcut)
+        self.shortcut_up.activated.connect(self.load_previous_image)
+
+        self.shortcut_down = QShortcut(QKeySequence(Qt.Key_Down), self)
+        self.shortcut_down.setContext(Qt.ApplicationShortcut)
+        self.shortcut_down.activated.connect(self.load_next_image)
+
     def set_brush_mode(self):
         """设置画笔模式并更新界面"""
         self.erase_mode = False
@@ -504,6 +523,14 @@ class SegmentationTool(QMainWindow):
         if self.current_index < 0 or self.current_index >= len(self.image_list):
             return
 
+        # 弹出确认对话框，询问是否删除当前图片及其标注
+        reply = QMessageBox.question(
+            self, "确认删除", "是否确认删除该图片及其所有标注？",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if reply == QMessageBox.No:
+            return
+
         filename = self.image_list[self.current_index]
         image_path = os.path.join(self.image_folder, filename)
         mask_path = os.path.join(self.mask_folder, filename)
@@ -522,7 +549,7 @@ class SegmentationTool(QMainWindow):
             os.remove(save_path)
             print(f"Deleted saved mask: {save_path}")
 
-        # 从列表中移除
+        # 从列表中移除当前图片
         del self.image_list[self.current_index]
 
         # 更新界面
@@ -539,7 +566,7 @@ class SegmentationTool(QMainWindow):
             self.annotated_count = 0
             self.update_count_label()
         else:
-            # 如果删除的是最后一张图片，索引减1
+            # 如果删除的是最后一张图片，则将索引减 1
             if self.current_index >= len(self.image_list):
                 self.current_index = len(self.image_list) - 1
             self.load_current_image()
