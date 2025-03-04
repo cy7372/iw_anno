@@ -8,7 +8,7 @@ $pythonScript = "$rootFolder\main.py"
 $resourcesFolder = "$rootFolder\resources\*"
 
 # 定义版本号
-$version = "1.0.0.1"  # 设置版本号
+$version = "1.0.3.1"  # 设置版本号
 
 # 设置输出文件名，包含版本号
 $outputFileName = "iw_anno_v$version"

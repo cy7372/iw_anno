@@ -488,7 +488,9 @@ class SegmentationTool(QMainWindow):
 
         filename = self.image_list[self.current_index]
         image_path = os.path.join(self.image_folder, filename)
-        mask_path = os.path.join(self.mask_folder, filename)
+        # 获取不带扩展名的文件名，并添加.png作为mask的扩展名
+        mask_filename = os.path.splitext(filename)[0] + '.png'
+        mask_path = os.path.join(self.mask_folder, mask_filename)
 
         self.image = QImage(image_path).convertToFormat(QImage.Format_RGB32)
         if os.path.exists(mask_path):
